@@ -1663,6 +1663,16 @@ def optparse_init() -> optparse.OptionParser:
         help="Zoom levels to render (format:'2-5', '10-' or '10').",
     )
     p.add_option(
+        "--tileIdX",
+        dest="tileIdx",
+        help="x of tile id",
+    )
+    p.add_option(
+        "--tileIdY",
+        dest="tileIdy",
+        help="y of tile id",
+    )
+    p.add_option(
         "-e",
         "--resume",
         dest="resume",
@@ -2044,6 +2054,8 @@ class GDAL2Tiles(object):
         self.omaxx = None
         self.omaxy = None
         self.ominy = None
+        self.tileIdx = None
+        self.tileIdy = None
 
         self.input_file = None
         self.output_folder = None
@@ -2096,6 +2108,8 @@ class GDAL2Tiles(object):
 
         self.tminz, self.tmaxz = self.options.zoom
 
+        self.tileIdx = int(self.options.tileIdx)
+        self.tileIdy = int(self.options.tileIdy)
         # KML generation
         self.kml = self.options.kml
 
@@ -2295,15 +2309,23 @@ class GDAL2Tiles(object):
             # Function which generates SWNE in LatLong for given tile
             self.tileswne = self.mercator.TileLatLonBounds
 
-            # Generate table with min max tile coordinates for all zoomlevels
-            self.tminmax = list(range(0, MAXZOOMLEVEL))
-            for tz in range(0, MAXZOOMLEVEL):
-                tminx, tminy = self.mercator.MetersToTile(self.ominx, self.ominy, tz)
-                tmaxx, tmaxy = self.mercator.MetersToTile(self.omaxx, self.omaxy, tz)
-                # crop tiles extending world limits (+-180,+-90)
-                tminx, tminy = max(0, tminx), max(0, tminy)
-                tmaxx, tmaxy = min(2**tz - 1, tmaxx), min(2**tz - 1, tmaxy)
-                self.tminmax[tz] = (tminx, tminy, tmaxx, tmaxy)
+            if self.tileIdx is not None and self.tileIdy is not None:
+                tminx = self.tileIdx
+                tmaxx = self.tileIdx
+                tmaxy = self.tileIdy
+                tminy = self.tileIdy
+                self.tminmax = list(range(0, MAXZOOMLEVEL))
+                self.tminmax[self.tmaxz] = (tminx, tminy, tmaxx, tmaxy)
+            else:
+                # Generate table with min max tile coordinates for all zoomlevels
+                self.tminmax = list(range(0, MAXZOOMLEVEL))
+                for tz in range(0, MAXZOOMLEVEL):
+                    tminx, tminy = self.mercator.MetersToTile(self.ominx, self.ominy, tz)
+                    tmaxx, tmaxy = self.mercator.MetersToTile(self.omaxx, self.omaxy, tz)
+                    # crop tiles extending world limits (+-180,+-90)
+                    tminx, tminy = max(0, tminx), max(0, tminy)
+                    tmaxx, tmaxy = min(2 ** tz - 1, tmaxx), min(2 ** tz - 1, tmaxy)
+                    self.tminmax[tz] = (tminx, tminy, tmaxx, tmaxy)
 
             # TODO: Maps crossing 180E (Alaska?)
 
